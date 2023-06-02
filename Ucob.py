@@ -1,12 +1,15 @@
 import logging
 import math
 import time
+
 import glm
-import threading
 
 from raid_helper import utils as raid_utils
 from raid_helper.data import special_actions
 from raid_helper.utils.typing import *
+Ucob = raid_utils.MapTrigger(733)
+is_enable = Ucob.add_value(raid_utils.BoolCheckBox('default/enable', True))
+Ucob.decorators.append(lambda f: (lambda *args, **kwargs: f(*args, **kwargs) if is_enable.value else None))
 
 # special_actions[9913] = raid_utils.fan_shape(23)  # 披萨饼
 special_actions[9913] = 0
@@ -18,7 +21,7 @@ special_actions[9942] = 0  # 十亿核爆
 special_actions[9905] = 0  # 以太失控
 # special_actions[9968] = 0  # 百京核爆
 # special_actions[9964] = 0  # 无尽顿悟
-Ucob = raid_utils.MapTrigger(733)
+
 
 center = glm.vec3(100, 0, 100)
 
@@ -26,25 +29,13 @@ logger = logging.getLogger('raid_helper/Ucob')
 
 
 def _draw_disperse(actor: raid_utils.NActor, range, dura):
-    normal_surface = glm.vec4(.6, 1, .6, .2)
-    danger_surface = glm.vec4(1, .6, .6, .2)
-    normal_line = glm.vec4(.2, 1, .2, .7)
-    danger_line = glm.vec4(1, .2, .2, .7)
-
-    def get_surface(omen: raid_utils.BaseOmen):
-        return danger_surface if any(
+    def get_color(omen: raid_utils.BaseOmen):
+        return 'enemy' if any(
             omen.is_hit(a.pos)
             for a in raid_utils.iter_main_party(exclude_id=actor.update().id)
-        ) else normal_surface
+        ) else 'friend'
 
-    def get_line(omen: raid_utils.BaseOmen):
-        return danger_line if any(
-            omen.is_hit(a.pos)
-            for a in raid_utils.iter_main_party(exclude_id=actor.update().id)
-        ) else normal_line
-
-    return raid_utils.draw_circle(radius=range, pos=actor, duration=dura, surface_color=get_surface,
-                                  line_color=get_line)
+    return raid_utils.draw_circle(radius=range, pos=actor, duration=dura, color=get_color)
 
 
 class Timer:
@@ -144,27 +135,17 @@ def on_add_status_light(evt: 'ActorControlMessage[actor_control.AddStatus]'):
 @Ucob.on_lockon(40)
 def on_lockon_earth_shake(msg: ActorControlMessage[actor_control.SetLockOn]):
     # 大地摇动
-    normal_surface = glm.vec4(.6, 1, .6, .2)
-    danger_surface = glm.vec4(1, .6, .6, .2)
-    normal_line = glm.vec4(.2, 1, .2, .7)
-    danger_line = glm.vec4(1, .2, .2, .7)
     bahamut = next(raid_utils.find_actor_by_base_id(0x1FE8))
     t_actor = raid_utils.NActor.by_id(msg.source_id)
 
-    def get_surface(omen: raid_utils.BaseOmen):
-        return danger_surface if any(
+    def get_color(omen: raid_utils.BaseOmen):
+        return 'enemy' if any(
             omen.is_hit(a.pos)
             for a in raid_utils.iter_main_party(exclude_id=t_actor.update().id)
-        ) else normal_surface
-
-    def get_line(omen: raid_utils.BaseOmen):
-        return danger_line if any(
-            omen.is_hit(a.pos)
-            for a in raid_utils.iter_main_party(exclude_id=t_actor.update().id)
-        ) else normal_line
+        ) else 'friend'
 
     raid_utils.draw_fan(pos=bahamut, facing=lambda _: glm.polar(t_actor.update().pos - bahamut.update().pos).y,
-                        radius=30, degree=90, duration=6, surface_color=get_surface, line_color=get_line)
+                        radius=30, degree=90, duration=6, color=get_color)
 
 
 @Ucob.on_cast(9955)
